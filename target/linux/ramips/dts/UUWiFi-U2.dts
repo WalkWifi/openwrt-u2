@@ -1,0 +1,208 @@
+/dts-v1/;
+
+/include/ "mt7628an.dtsi"
+
+/ {
+	compatible = "mediatek,uuwifi", "mediatek,mt7628an-soc";
+	model = "UUWiFi-U2";
+
+	chosen {
+		bootargs = "console=ttyS2,230400";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x4000000>;
+	};
+
+	pinctrl {
+		state_default: pinctrl0 {
+			gpio {
+				ralink,group = "spis", "gpio", "sdmode", "pwm0", "refclk", "i2c", "i2s", "p1led_an", "p3led_an", "p4led_an";
+				ralink,function = "gpio";
+			};
+		};
+	};
+
+
+	palmbus@10000000 {
+		spi@b00 {
+			status = "okay";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi_pins>, <&spi_cs1_pins>;
+
+			m25p80@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "w25q128";
+				reg = <0 0>;
+				linux,modalias = "m25p80", "w25q128";
+				spi-max-frequency = <40000000>;
+				m25p,chunked-io = <31>;
+
+				partition@0 {
+					label = "u-boot";
+					reg = <0x0 0x30000>;
+					read-only;
+				};
+
+				partition@30000 {
+					label = "u-boot-env";
+					reg = <0x30000 0x10000>;
+				};
+
+				factory: partition@40000 {
+					label = "factory";
+					reg = <0x40000 0x10000>;
+				};
+
+				partition@50000 {
+					label = "firmware";
+					reg = <0x50000 0xfb0000>;
+				};
+			};
+			
+			spidev@1 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "spidev";
+				reg = <1 0>;
+				spi-max-frequency = <40000000>;
+			};			
+		};
+
+
+		uart1@d00 {
+			status = "okay";
+		};
+
+		uart2@e00 {
+			status = "okay";
+		};
+
+	};
+
+	ethernet@10100000 {
+		mtd-mac-address = <&factory 0x28>;
+	};
+
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		orange_led {
+			label = "uuwifi:orange";
+			gpios = <&gpio0 15 0>;
+			default-state = "on";
+		};
+		
+		green_led {
+			label = "uuwifi:green";
+			gpios = <&gpio1 7 0>;
+		};
+		
+		blue_led {
+			label = "uuwifi:blue";
+			gpios = <&gpio1 9 0>;
+		};
+
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <20>;
+		power {
+			label = "power";
+			gpios = <&gpio0 24 1>;
+			linux,code = <116>;
+		};
+	};
+
+
+	gpio_export {
+		compatible = "gpio-export";
+		#size-cells = <0>;
+
+		lte4power {
+			gpio-export,name = "G4Power";
+			gpio-export,output = <0>;
+			gpios = <&gpio0 29 0>;      //GPIO_ACTIVE_HIGH
+		};
+
+		lte4reset {
+			gpio-export,name = "G4Reset";
+			gpio-export,output = <0>;
+			gpios = <&gpio0 28 0>;
+		};
+
+		lte4status {
+			gpio-export,name = "G4Status";
+			gpio-export,input = <0>;
+			gpios = <&gpio0 22 0>;      //GPIO_ACTIVE_HIGH
+		};
+		
+		
+		vsimreset {
+			gpio-export,name = "VsimReset";
+			gpio-export,input = <1>;
+			gpios = <&gpio0 23 0>;
+		};
+				
+
+		lte4usbv {
+			gpio-export,name = "G4USBV";
+			gpio-export,output = <1>;   //OUT_INIT_HIGH
+			gpios = <&gpio0 18 0>;
+		};
+
+		gprs2power {
+			gpio-export,name = "G2Power";
+			gpio-export,output = <0>;
+			gpios = <&gpio0 14 0>;
+		};
+
+		gprs2status {
+			gpio-export,name = "G2Status";
+			gpio-export,input = <0>;
+			gpios = <&gpio0 17 0>;
+		};
+
+		powerenable {
+			gpio-export,name = "PowerEnable";
+			gpio-export,output = <1>;    //OUT_INIT_HIGH
+			gpios = <&gpio0 11 0>;       //GPIO_ACTIVE_HIGH
+		};
+
+		fastcharge {
+			gpio-export,name = "FastCharge";
+			gpio-export,output = <1>;   
+			gpios = <&gpio1 5 0>;     //GPIO#37
+		};
+
+		chargestatus {
+			gpio-export,name = "ChargeStatus";
+			gpio-export,input = <0>;   
+			gpios = <&gpio1 8 0>;     //GPIO#40
+		};
+
+		chargeout {
+			gpio-export,name = "ChargeOut";
+			gpio-export,output = <0>;   //OUT_INIT_LOW
+			gpios = <&gpio0 2 0>;     
+		};
+
+		lte4localsim {
+			gpio-export,name = "G4LocalSim";
+			gpio-export,input = <0>;   
+			gpios = <&gpio1 10 0>;      //GPIO#42
+		};		
+	};
+
+
+
+
+
+
+};

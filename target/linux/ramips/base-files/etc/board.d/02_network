@@ -49,6 +49,7 @@ ramips_setup_interfaces()
 	linkits7688d | \
 	microwrt | \
 	w150m | \
+	uuwifi-u2 | \
 	zte-q7 | \
 	all0256n | \
 	all5002 | \

@@ -1,0 +1,100 @@
+--- a/drivers/net/usb/qmi_wwan.c
++++ b/drivers/net/usb/qmi_wwan.c
+@@ -76,6 +76,23 @@ static const u8 default_modem_addr[ETH_A
+  * to 00:a0:c6:00:00:00 despite the host address being different.
+  * This function will also fixup such packets.
+  */
++
++static struct sk_buff *qmi_wwan_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
++{
++	if (dev->udev->descriptor.idVendor != cpu_to_le16(0x2C7C))
++		return skb;
++
++	// Skip Ethernet header from message
++	if (skb_pull(skb, ETH_HLEN)) {
++		return skb;
++	} else {
++		dev_err(&dev->intf->dev, "Packet Dropped ");
++	}
++	// Filter the packet out, release it
++	dev_kfree_skb_any(skb);
++	return NULL;
++}
++
+ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
+ {
+ 	__be16 proto;
+@@ -344,6 +361,20 @@ next_desc:
+ 		dev->net->dev_addr[0] &= 0xbf;	/* clear "IP" bit */
+ 	}
+ 	dev->net->netdev_ops = &qmi_wwan_netdev_ops;
++
++	if (dev->udev->descriptor.idVendor == cpu_to_le16(0x2C7C)) {
++		dev_info(&intf->dev, "Quectel EC21&EC25 work on RawIP mode\n");
++		dev->net->flags |= IFF_NOARP;
++	 	usb_control_msg(
++			interface_to_usbdev(intf),
++			usb_sndctrlpipe(interface_to_usbdev(intf), 0),
++			0x22, //USB_CDC_REQ_SET_CONTROL_LINE_STATE
++			0x21, //USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE
++			1, //active CDC DTR
++			intf->cur_altsetting->desc.bInterfaceNumber,
++			NULL, 0, 100);
++	}
++
+ err:
+ 	return status;
+ }
+@@ -428,6 +459,7 @@ static const struct driver_info	qmi_wwan
+ 	.bind		= qmi_wwan_bind,
+ 	.unbind		= qmi_wwan_unbind,
+ 	.manage_power	= qmi_wwan_manage_power,
++	.tx_fixup	= qmi_wwan_tx_fixup,
+ 	.rx_fixup       = qmi_wwan_rx_fixup,
+ };
+ 
+@@ -793,6 +825,8 @@ static const struct usb_device_id produc
+ 	{QMI_FIXED_INTF(0x413c, 0x81a8, 8)},	/* Dell Wireless 5808 Gobi(TM) 4G LTE Mobile Broadband Card */
+ 	{QMI_FIXED_INTF(0x413c, 0x81a9, 8)},	/* Dell Wireless 5808e Gobi(TM) 4G LTE Mobile Broadband Card */
+ 
++	{QMI_FIXED_INTF(0x2C7C, 0x0125, 4)},    /* Quectel EC20 R2 */
++
+ 	/* 4. Gobi 1000 devices */
+ 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
+ 	{QMI_GOBI1K_DEVICE(0x03f0, 0x1f1d)},	/* HP un2400 Gobi Modem Device */
+--- a/drivers/usb/serial/option.c
++++ b/drivers/usb/serial/option.c
+@@ -1174,6 +1174,10 @@ static const struct usb_device_id option
+ 	  .driver_info = (kernel_ulong_t)&sierra_mc73xx_blacklist }, /* MC7305/MC7355 */
+ 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x9003), /* Quectel UC20 */
+ 	  .driver_info = (kernel_ulong_t)&net_intf4_blacklist },
++
++	{ USB_DEVICE_AND_INTERFACE_INFO(0x2c7c, 0x0125, 0xff, 0x0, 0x0),
++		.driver_info = (kernel_ulong_t) &net_intf1_blacklist },
++
+ 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6001) },
+ 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_CMU_300) },
+ 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6003),
+@@ -2044,6 +2048,7 @@ static struct usb_serial_driver option_1
+ #ifdef CONFIG_PM
+ 	.suspend           = usb_wwan_suspend,
+ 	.resume            = usb_wwan_resume,
++	.reset_resume	   = usb_wwan_resume,
+ #endif
+ };
+ 
+--- a/drivers/usb/serial/usb_wwan.c
++++ b/drivers/usb/serial/usb_wwan.c
+@@ -471,6 +471,12 @@ static struct urb *usb_wwan_setup_urb(st
+ 			  usb_sndbulkpipe(serial->dev, endpoint) | dir,
+ 			  buf, len, callback, ctx);
+ 
++	if (dir == USB_DIR_OUT) {
++		struct usb_device_descriptor *desc = &serial->dev->descriptor;
++		if (desc->idVendor == cpu_to_le16(0x2C7C))
++			urb->transfer_flags |= URB_ZERO_PACKET;
++	}
++
+ 	return urb;
+ }
+ 

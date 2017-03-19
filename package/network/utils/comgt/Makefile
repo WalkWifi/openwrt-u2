@@ -38,7 +38,7 @@ endef
 define Package/comgt-directip
 $(call Package/comgt/Default)
   TITLE:=Sierra Wireless Direct-IP support
-  DEPENDS:=+comgt +kmod-usb-serial +kmod-usb-serial-sierrawireless +kmod-usb-net +kmod-usb-net-sierrawireless
+  DEPENDS:=+comgt +kmod-usb-serial +kmod-usb-net
 endef
 
 define Package/comgt-ncm
