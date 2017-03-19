@@ -544,3 +544,12 @@ config KERNEL_SECCOMP
 		default n
 		help
 		  Build kernel with support for seccomp.
+
+
+config KERNEL_DEVMEM
+	bool "/dev/mem virtual device support"
+	help
+	  Say Y here if you want to support the /dev/mem device.
+	  The /dev/mem device is used to access areas of physical
+	  memory.
+
